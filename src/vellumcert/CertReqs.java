@@ -20,6 +20,7 @@
  */
 package vellumcert;
 
+import java.math.BigInteger;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.cert.X509Certificate;
@@ -89,14 +90,16 @@ public class CertReqs {
         return new BASE64Decoder().decodeBuffer(pem);
     }
     
-    public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, X509Certificate signingCert,
-            Date notBefore, int validityDays) throws Exception {
+    public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, 
+            X509Certificate signingCert, Date notBefore, int validityDays) 
+            throws Exception {
         Date notAfter = new Date(notBefore.getTime() + TimeUnit.DAYS.toMillis(validityDays));
         return sign(certReq, signingKey, signingCert, notBefore, notAfter);
     }
     
-    public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, X509Certificate signingCert,
-            Date notBefore, Date notAfter) throws Exception {
+    public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, 
+            X509Certificate signingCert, Date notBefore, Date notAfter) 
+            throws Exception {
         String sigAlgName = "SHA256WithRSA";
         CertificateValidity validity = new CertificateValidity(notBefore, notAfter);
         byte[] encoded = signingCert.getEncoded();
@@ -112,14 +115,20 @@ public class CertReqs {
         cert.sign(signingKey, sigAlgName);
         return cert;
     }
-        
+
+    public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, 
+            X509Certificate signingCert, Date notBefore, Date notAfter, 
+            long serialNumber) throws Exception {
+        return sign(certReq, signingKey, signingCert, notBefore, notAfter, serialNumber,
+                false, 0, KeyUsageType.DIGITAL_SIGNATURE);
+    }
+    
     public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, X509Certificate signingCert,
-            Date notBefore, int validityDays, int serialNumber,
+            Date notBefore, Date notAfter, long serialNumber,
             boolean isCa, int pathLength, KeyUsageType keyUsage) 
             throws Exception {
         String sigAlgName = "SHA256WithRSA";
-        Date endDate = new Date(notBefore.getTime() + TimeUnit.DAYS.toMillis(validityDays));
-        CertificateValidity validity = new CertificateValidity(notBefore, endDate);
+        CertificateValidity validity = new CertificateValidity(notBefore, notAfter);
         byte[] encoded = signingCert.getEncoded();
         X509CertImpl signerCertImpl = new X509CertImpl(encoded);
         X509CertInfo signerCertInfo = (X509CertInfo) signerCertImpl.get(
@@ -136,7 +145,8 @@ public class CertReqs {
     }
     
     private static X509CertInfo buildCertInfo(CertReq certReq, X500Name issuer, 
-            String sigAlgName, CertificateValidity validity) throws Exception {
+            String sigAlgName, CertificateValidity validity) 
+            throws Exception {
         X509CertInfo info = new X509CertInfo();
         info.set(X509CertInfo.VALIDITY, validity);
         info.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(
@@ -151,11 +161,13 @@ public class CertReqs {
     }
     
     private static X509CertInfo buildCertInfo(CertReq certReq, X500Name issuer, 
-            String sigAlgName, CertificateValidity validity, int serialNumber,
-            boolean isCa, int pathLength, KeyUsageType keyUsage) throws Exception {
+            String sigAlgName, CertificateValidity validity, long serialNumber,
+            boolean isCa, int pathLength, KeyUsageType keyUsage) 
+            throws Exception {
         X509CertInfo info = new X509CertInfo();
         info.set(X509CertInfo.VALIDITY, validity);
-        info.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(serialNumber));
+        info.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(
+                BigInteger.valueOf(serialNumber)));
         info.set(X509CertInfo.VERSION, new CertificateVersion(CertificateVersion.V3));
         info.set(X509CertInfo.ALGORITHM_ID,
                 new CertificateAlgorithmId(AlgorithmId.get(sigAlgName)));
