@@ -20,7 +20,9 @@
  */
 package vellumcert;
 
+import java.io.IOException;
 import java.math.BigInteger;
+import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.cert.X509Certificate;
@@ -54,8 +56,7 @@ import sun.security.x509.X509CertInfo;
 public class CertReqs {
     private static Logger logger = LoggerFactory.getLogger(CertReqs.class);
     private static final String DASHES = "-----";
-    private static final String BEGIN_NEW_CERT_REQ = "-----BEGIN NEW CERTIFICATE REQUEST-----";
-    private static final String END_NEW_CERT_REQ = "-----END NEW CERTIFICATE REQUEST-----";
+    private static final String BEGIN_NEW_CERT_REQ = "BEGIN NEW CERTIFICATE REQUEST";
         
     public static PKCS10 create(PrivateKey privateKey, X509Certificate cert) 
             throws Exception {
@@ -73,23 +74,12 @@ public class CertReqs {
         return request;
     }
 
-    public static CertReq create(String certReqPem) throws Exception {
-        PKCS10 req = new PKCS10(decodePemDer(certReqPem));
+    public static CertReq create(String certReqPem) 
+            throws IOException, GeneralSecurityException {
+        PKCS10 req = new PKCS10(Pems.decodePemDer(certReqPem));
         return new CertReq(req.getSubjectName().getName(), req.getSubjectPublicKeyInfo());
     }
 
-    public static byte[] decodePemDer(String pem) throws Exception {
-        int index = pem.lastIndexOf(DASHES);
-        if (index > 0) {
-            pem = pem.substring(0, index);
-            index = pem.lastIndexOf(DASHES);
-            pem = pem.substring(0, index);
-            index = pem.lastIndexOf(DASHES);
-            pem = pem.substring(index + DASHES.length());
-        }
-        return new BASE64Decoder().decodeBuffer(pem);
-    }
-    
     public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, 
             X509Certificate signingCert, Date notBefore, int validityDays) 
             throws Exception {
