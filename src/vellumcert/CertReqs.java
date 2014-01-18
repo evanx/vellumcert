@@ -27,6 +27,7 @@ import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.misc.BASE64Decoder;
 import sun.security.pkcs.PKCS10;
 import sun.security.pkcs.PKCS10Attribute;
 import sun.security.pkcs.PKCS9Attribute;
@@ -50,7 +51,10 @@ import sun.security.x509.X509CertInfo;
  * @author evan.summers
  */
 public class CertReqs {
-    static Logger logger = LoggerFactory.getLogger(CertReqs.class);
+    private static Logger logger = LoggerFactory.getLogger(CertReqs.class);
+    private static final String DASHES = "-----";
+    private static final String BEGIN_NEW_CERT_REQ = "-----BEGIN NEW CERTIFICATE REQUEST-----";
+    private static final String END_NEW_CERT_REQ = "-----END NEW CERTIFICATE REQUEST-----";
         
     public static PKCS10 create(PrivateKey privateKey, X509Certificate cert) 
             throws Exception {
@@ -67,6 +71,23 @@ public class CertReqs {
         request.encodeAndSign(subject, signature);
         return request;
     }
+    
+    public static byte[] decodePemDer(String pem) throws Exception {
+        int index = pem.lastIndexOf(DASHES);
+        if (index > 0) {
+            pem = pem.substring(0, index);
+            index = pem.lastIndexOf(DASHES);
+            pem = pem.substring(0, index);
+            index = pem.lastIndexOf(DASHES);
+            pem = pem.substring(index + DASHES.length());
+        }
+        return new BASE64Decoder().decodeBuffer(pem);
+    }
+
+    public static PKCS10 createReq(String csr) throws Exception {
+        return new PKCS10(decodePemDer(csr));
+    }
+    
     
     public static X509Certificate sign(PKCS10 certReq, PrivateKey signingKey, X509Certificate signingCert,
             Date notBefore, int validityDays) throws Exception {
@@ -86,14 +107,14 @@ public class CertReqs {
                 X509CertInfo.SUBJECT + "." + CertificateSubjectName.DN_NAME);
         Signature signature = Signature.getInstance(sigAlgName);
         signature.initSign(signingKey);
-        X509CertImpl cert = new X509CertImpl(buildCertInfo(issuer, certReq, 
+        X509CertImpl cert = new X509CertImpl(buildCertInfo(certReq, issuer, 
                 sigAlgName, validity));
         cert.sign(signingKey, sigAlgName);
         return cert;
     }
         
-    public static X509Certificate sign(PrivateKey signingKey, X509Certificate signingCert,
-            PKCS10 certReq, Date startDate, int validityDays, int serialNumber,
+    public static X509Certificate sign(PKCS10 certReq, PrivateKey signingKey, X509Certificate signingCert,
+            Date startDate, int validityDays, int serialNumber,
             boolean isCa, int pathLength, KeyUsageType keyUsage) 
             throws Exception {
         String sigAlgName = "SHA256WithRSA";
@@ -107,14 +128,14 @@ public class CertReqs {
                 X509CertInfo.SUBJECT + "." + CertificateSubjectName.DN_NAME);
         Signature signature = Signature.getInstance(sigAlgName);
         signature.initSign(signingKey);
-        X509CertInfo certInfo = buildCertInfo(issuer, certReq, 
+        X509CertInfo certInfo = buildCertInfo(certReq, issuer,  
                 sigAlgName, validity, serialNumber, isCa, pathLength, keyUsage);
         X509CertImpl cert = new X509CertImpl(certInfo);
         cert.sign(signingKey, sigAlgName);
         return cert;
     }
     
-    private static X509CertInfo buildCertInfo(X500Name issuer, PKCS10 certReq, 
+    private static X509CertInfo buildCertInfo(PKCS10 certReq, X500Name issuer, 
             String sigAlgName, CertificateValidity validity) throws Exception {
         X509CertInfo info = new X509CertInfo();
         info.set(X509CertInfo.VALIDITY, validity);
@@ -129,7 +150,7 @@ public class CertReqs {
         return info;
     }
     
-    private static X509CertInfo buildCertInfo(X500Name issuer, PKCS10 certReq, 
+    private static X509CertInfo buildCertInfo(PKCS10 certReq, X500Name issuer, 
             String sigAlgName, CertificateValidity validity, int serialNumber,
             boolean isCa, int pathLength, KeyUsageType keyUsage) throws Exception {
         X509CertInfo info = new X509CertInfo();
