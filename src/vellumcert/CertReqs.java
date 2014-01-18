@@ -71,7 +71,12 @@ public class CertReqs {
         request.encodeAndSign(subject, signature);
         return request;
     }
-    
+
+    public static CertReq create(String certReqPem) throws Exception {
+        PKCS10 req = new PKCS10(decodePemDer(certReqPem));
+        return new CertReq(req.getSubjectName().getName(), req.getSubjectPublicKeyInfo());
+    }
+
     public static byte[] decodePemDer(String pem) throws Exception {
         int index = pem.lastIndexOf(DASHES);
         if (index > 0) {
@@ -83,19 +88,14 @@ public class CertReqs {
         }
         return new BASE64Decoder().decodeBuffer(pem);
     }
-
-    public static PKCS10 createReq(String csr) throws Exception {
-        return new PKCS10(decodePemDer(csr));
-    }
     
-    
-    public static X509Certificate sign(PKCS10 certReq, PrivateKey signingKey, X509Certificate signingCert,
+    public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, X509Certificate signingCert,
             Date notBefore, int validityDays) throws Exception {
         Date notAfter = new Date(notBefore.getTime() + TimeUnit.DAYS.toMillis(validityDays));
         return sign(certReq, signingKey, signingCert, notBefore, notAfter);
     }
     
-    public static X509Certificate sign(PKCS10 certReq, PrivateKey signingKey, X509Certificate signingCert,
+    public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, X509Certificate signingCert,
             Date notBefore, Date notAfter) throws Exception {
         String sigAlgName = "SHA256WithRSA";
         CertificateValidity validity = new CertificateValidity(notBefore, notAfter);
@@ -113,13 +113,13 @@ public class CertReqs {
         return cert;
     }
         
-    public static X509Certificate sign(PKCS10 certReq, PrivateKey signingKey, X509Certificate signingCert,
-            Date startDate, int validityDays, int serialNumber,
+    public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, X509Certificate signingCert,
+            Date notBefore, int validityDays, int serialNumber,
             boolean isCa, int pathLength, KeyUsageType keyUsage) 
             throws Exception {
         String sigAlgName = "SHA256WithRSA";
-        Date endDate = new Date(startDate.getTime() + TimeUnit.DAYS.toMillis(validityDays));
-        CertificateValidity validity = new CertificateValidity(startDate, endDate);
+        Date endDate = new Date(notBefore.getTime() + TimeUnit.DAYS.toMillis(validityDays));
+        CertificateValidity validity = new CertificateValidity(notBefore, endDate);
         byte[] encoded = signingCert.getEncoded();
         X509CertImpl signerCertImpl = new X509CertImpl(encoded);
         X509CertInfo signerCertInfo = (X509CertInfo) signerCertImpl.get(
@@ -135,7 +135,7 @@ public class CertReqs {
         return cert;
     }
     
-    private static X509CertInfo buildCertInfo(PKCS10 certReq, X500Name issuer, 
+    private static X509CertInfo buildCertInfo(CertReq certReq, X500Name issuer, 
             String sigAlgName, CertificateValidity validity) throws Exception {
         X509CertInfo info = new X509CertInfo();
         info.set(X509CertInfo.VALIDITY, validity);
@@ -145,12 +145,12 @@ public class CertReqs {
         info.set(X509CertInfo.ALGORITHM_ID, 
                 new CertificateAlgorithmId(AlgorithmId.get(sigAlgName)));
         info.set(X509CertInfo.ISSUER, new CertificateIssuerName(issuer));
-        info.set(X509CertInfo.KEY, new CertificateX509Key(certReq.getSubjectPublicKeyInfo()));
-        info.set(X509CertInfo.SUBJECT, new CertificateSubjectName(certReq.getSubjectName()));
+        info.set(X509CertInfo.KEY, new CertificateX509Key(certReq.getPublicKey()));
+        info.set(X509CertInfo.SUBJECT, new CertificateSubjectName(new X500Name(certReq.getSubject())));
         return info;
     }
     
-    private static X509CertInfo buildCertInfo(PKCS10 certReq, X500Name issuer, 
+    private static X509CertInfo buildCertInfo(CertReq certReq, X500Name issuer, 
             String sigAlgName, CertificateValidity validity, int serialNumber,
             boolean isCa, int pathLength, KeyUsageType keyUsage) throws Exception {
         X509CertInfo info = new X509CertInfo();
@@ -160,8 +160,8 @@ public class CertReqs {
         info.set(X509CertInfo.ALGORITHM_ID,
                 new CertificateAlgorithmId(AlgorithmId.get(sigAlgName)));
         info.set(X509CertInfo.ISSUER, new CertificateIssuerName(issuer));
-        info.set(X509CertInfo.KEY, new CertificateX509Key(certReq.getSubjectPublicKeyInfo()));
-        info.set(X509CertInfo.SUBJECT, new CertificateSubjectName(certReq.getSubjectName()));
+        info.set(X509CertInfo.KEY, new CertificateX509Key(certReq.getPublicKey()));
+        info.set(X509CertInfo.SUBJECT, new CertificateSubjectName(new X500Name(certReq.getSubject())));
         CertificateExtensions extensions = new CertificateExtensions();
         if (isCa) {
             BasicConstraintsExtension bce = new BasicConstraintsExtension(true, true, 1);

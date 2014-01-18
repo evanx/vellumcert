@@ -26,7 +26,6 @@ import java.security.PrivateKey;
 import java.util.Date;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.TimeUnit;
-import sun.security.pkcs.PKCS10;
 import sun.security.x509.CertAndKeyGen;
 import sun.security.x509.X500Name;
 
@@ -73,8 +72,8 @@ public class GenKeyPair {
         return cert;
     }
 
-    public PKCS10 getCertRequest(String dname) throws Exception {
-        return gen.getCertRequest(new X500Name(dname));
+    public CertReq getCertRequest(String dname) throws Exception {
+        return new CertReq(dname, gen.getCertRequest(new X500Name(dname)).getSubjectPublicKeyInfo());
     }   
     
     public void sign(PrivateKey signerKey, X509Certificate signerCert) throws Exception {
