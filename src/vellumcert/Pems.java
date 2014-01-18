@@ -24,7 +24,6 @@ import java.security.Key;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import org.apache.commons.codec.binary.Base64;
-import vellum.exception.Exceptions;
 
 /**
  *
@@ -37,6 +36,7 @@ public class Pems {
     private static final String BEGIN_CERT = "BEGIN CERTIFICATE";
     private static final String END_CERT = "END CERTIFICATE";
     private static final String DASHES = "-----";
+    private static final int LENGTH = 64;
 
     public static String buildKeyPem(Key privateKey) {
         StringBuilder builder = new StringBuilder();
@@ -59,9 +59,9 @@ public class Pems {
         builder.append(DASHES);
         builder.append('\n');
         String text = Base64.encodeBase64String(cert.getEncoded());
-        for (int index = 0;; index += 77) {
-            if (index + 77 < text.length()) {
-                builder.append(text.substring(index, index + 77));
+        for (int index = 0;; index += LENGTH) {
+            if (index + LENGTH < text.length()) {
+                builder.append(text.substring(index, index + LENGTH));
                 builder.append('\n');
             } else {
                 builder.append(text.substring(index));

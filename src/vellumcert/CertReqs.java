@@ -54,9 +54,8 @@ import sun.security.x509.X509CertInfo;
  * @author evan.summers
  */
 public class CertReqs {
-    private static Logger logger = LoggerFactory.getLogger(CertReqs.class);
-    private static final String DASHES = "-----";
-    private static final String BEGIN_NEW_CERT_REQ = "BEGIN NEW CERTIFICATE REQUEST";
+    private static final Logger logger = LoggerFactory.getLogger(CertReqs.class);
+    private static final String sigAlgName = "SHA256WithRSA";
         
     public static PKCS10 create(PrivateKey privateKey, X509Certificate cert) 
             throws Exception {
@@ -109,15 +108,26 @@ public class CertReqs {
     public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, 
             X509Certificate signingCert, Date notBefore, Date notAfter, 
             long serialNumber) throws Exception {
-        return sign(certReq, signingKey, signingCert, notBefore, notAfter, serialNumber,
-                false, 0, KeyUsageType.DIGITAL_SIGNATURE);
+        CertificateValidity validity = new CertificateValidity(notBefore, notAfter);
+        byte[] encoded = signingCert.getEncoded();
+        X509CertImpl signerCertImpl = new X509CertImpl(encoded);
+        X509CertInfo signerCertInfo = (X509CertInfo) signerCertImpl.get(
+                X509CertImpl.NAME + "." + X509CertImpl.INFO);
+        X500Name issuer = (X500Name) signerCertInfo.get(
+                X509CertInfo.SUBJECT + "." + CertificateSubjectName.DN_NAME);
+        Signature signature = Signature.getInstance(sigAlgName);
+        signature.initSign(signingKey);
+        X509CertInfo certInfo = buildCertInfo(certReq, issuer, sigAlgName, validity, 
+                serialNumber);
+        X509CertImpl cert = new X509CertImpl(certInfo);
+        cert.sign(signingKey, sigAlgName);
+        return cert;
     }
     
     public static X509Certificate sign(CertReq certReq, PrivateKey signingKey, X509Certificate signingCert,
             Date notBefore, Date notAfter, long serialNumber,
             boolean isCa, int pathLength, KeyUsageType keyUsage) 
             throws Exception {
-        String sigAlgName = "SHA256WithRSA";
         CertificateValidity validity = new CertificateValidity(notBefore, notAfter);
         byte[] encoded = signingCert.getEncoded();
         X509CertImpl signerCertImpl = new X509CertImpl(encoded);
@@ -137,16 +147,24 @@ public class CertReqs {
     private static X509CertInfo buildCertInfo(CertReq certReq, X500Name issuer, 
             String sigAlgName, CertificateValidity validity) 
             throws Exception {
+        int serialNumber = new java.util.Random().nextInt() & 0x7fffffff;
+        return buildCertInfo(certReq, issuer, sigAlgName, validity, serialNumber);
+    }
+
+    private static X509CertInfo buildCertInfo(CertReq certReq, X500Name issuer, 
+            String sigAlgName, CertificateValidity validity, long serialNumber) 
+            throws Exception {
         X509CertInfo info = new X509CertInfo();
         info.set(X509CertInfo.VALIDITY, validity);
         info.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(
-                new java.util.Random().nextInt() & 0x7fffffff));
+                BigInteger.valueOf(serialNumber)));
         info.set(X509CertInfo.VERSION, new CertificateVersion(CertificateVersion.V3));
-        info.set(X509CertInfo.ALGORITHM_ID, 
+        info.set(X509CertInfo.ALGORITHM_ID,
                 new CertificateAlgorithmId(AlgorithmId.get(sigAlgName)));
         info.set(X509CertInfo.ISSUER, new CertificateIssuerName(issuer));
         info.set(X509CertInfo.KEY, new CertificateX509Key(certReq.getPublicKey()));
-        info.set(X509CertInfo.SUBJECT, new CertificateSubjectName(new X500Name(certReq.getSubject())));
+        info.set(X509CertInfo.SUBJECT, new CertificateSubjectName(
+                new X500Name(certReq.getSubject())));
         return info;
     }
     
