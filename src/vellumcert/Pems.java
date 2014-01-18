@@ -58,7 +58,17 @@ public class Pems {
         builder.append(BEGIN_CERT);
         builder.append(DASHES);
         builder.append('\n');
-        builder.append(Base64.encodeBase64String(cert.getEncoded()));
+        String text = Base64.encodeBase64String(cert.getEncoded());
+        for (int index = 0;; index += 77) {
+            if (index + 77 < text.length()) {
+                builder.append(text.substring(index, index + 77));
+                builder.append('\n');
+            } else {
+                builder.append(text.substring(index));
+                builder.append('\n');
+                break;
+            }
+        }
         builder.append(DASHES);
         builder.append(END_CERT);
         builder.append(DASHES);
