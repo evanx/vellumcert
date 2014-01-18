@@ -49,10 +49,10 @@ import sun.security.x509.X509CertInfo;
  *
  * @author evan.summers
  */
-public class Signer {
-    static Logger logger = LoggerFactory.getLogger(Signer.class);
+public class CertReqs {
+    static Logger logger = LoggerFactory.getLogger(CertReqs.class);
         
-    public static PKCS10 createCertReq(PrivateKey privateKey, X509Certificate cert) 
+    public static PKCS10 create(PrivateKey privateKey, X509Certificate cert) 
             throws Exception {
         String sigAlgName = "SHA256WithRSA";
         PKCS10 request = new PKCS10(cert.getPublicKey());
@@ -68,14 +68,14 @@ public class Signer {
         return request;
     }
     
-    public static X509Certificate sign(PrivateKey signingKey, X509Certificate signingCert,
-            PKCS10 certReq, Date notBefore, int validityDays) throws Exception {
+    public static X509Certificate sign(PKCS10 certReq, PrivateKey signingKey, X509Certificate signingCert,
+            Date notBefore, int validityDays) throws Exception {
         Date notAfter = new Date(notBefore.getTime() + TimeUnit.DAYS.toMillis(validityDays));
-        return sign(signingKey, signingCert, certReq, notBefore, notAfter);
+        return sign(certReq, signingKey, signingCert, notBefore, notAfter);
     }
     
-    public static X509Certificate sign(PrivateKey signingKey, X509Certificate signingCert,
-            PKCS10 certReq, Date notBefore, Date notAfter) throws Exception {
+    public static X509Certificate sign(PKCS10 certReq, PrivateKey signingKey, X509Certificate signingCert,
+            Date notBefore, Date notAfter) throws Exception {
         String sigAlgName = "SHA256WithRSA";
         CertificateValidity validity = new CertificateValidity(notBefore, notAfter);
         byte[] encoded = signingCert.getEncoded();

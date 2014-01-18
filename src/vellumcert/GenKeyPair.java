@@ -78,7 +78,6 @@ public class GenKeyPair {
     }   
     
     public void sign(PrivateKey signerKey, X509Certificate signerCert) throws Exception {
-        cert = Signer.sign(signerKey, signerCert, getCertRequest(dname), 
-                notBefore, notAfter);
+        cert = CertReqs.sign(getCertRequest(dname), signerKey, signerCert, notBefore, notAfter);
     }
 }
